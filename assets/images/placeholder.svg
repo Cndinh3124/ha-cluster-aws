@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675" viewBox="0 0 1200 675" fill="none">
+  <rect width="1200" height="675" fill="#E7EEF9"/>
+  <path d="M0 545L250 330L455 470L720 230L1200 560V675H0V545Z" fill="#BDD5FF"/>
+  <circle cx="930" cy="170" r="72" fill="#9FC3FF"/>
+  <rect x="102" y="98" width="320" height="52" rx="12" fill="#2563D6"/>
+  <rect x="102" y="178" width="540" height="34" rx="10" fill="#5A8DE8"/>
+  <rect x="102" y="232" width="410" height="30" rx="10" fill="#7CA6F0"/>
+  <text x="102" y="430" fill="#1C3F88" font-family="Arial, sans-serif" font-size="58" font-weight="700">TDC News</text>
+  <text x="102" y="482" fill="#3D5D9D" font-family="Arial, sans-serif" font-size="28">Upload hinh de hien thi noi dung</text>
+</svg>

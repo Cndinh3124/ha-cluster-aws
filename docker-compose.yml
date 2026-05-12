@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    container_name: hoi_sinh_vien_web
+    ports:
+      - "80:80"
+    volumes:
+      - .:/var/www/html
+    env_file:
+      - .env
+    depends_on:
+      - db
+
+  db:
+    image: mysql:8.0
+    container_name: hoi_sinh_vien_db
+    restart: always
+    environment:
+      MYSQL_DATABASE: hoi_sinh_vien
+      MYSQL_ROOT_PASSWORD: root123
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./hoi_sinh_vien.sql:/docker-entrypoint-initdb.d/init.sql
+
+volumes:
+  mysql_data:
