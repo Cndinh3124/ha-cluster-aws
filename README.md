@@ -24,6 +24,8 @@
 - Username: `admin`
 - Password: `admin123`
 
+# Test CI/CD deploy
+
 ## 4) Thư mục upload
 - Ảnh bài viết: `uploads/posts`
 - Ảnh slider: `uploads/slides`
