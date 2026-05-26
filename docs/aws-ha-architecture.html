@@ -1,0 +1,1196 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AWS HA Cluster Architecture - Hội Sinh Viên TDC</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;700;800&display=swap');
+
+  :root {
+    --aws-orange: #FF9900;
+    --aws-dark: #232F3E;
+    --aws-blue: #1A73E8;
+    --aws-green: #1DB954;
+    --aws-red: #E53935;
+    --aws-purple: #7C3AED;
+    --vpc-blue: #E3F2FD;
+    --vpc-border: #1565C0;
+    --az-a: #E8F5E9;
+    --az-b: #FFF8E1;
+    --az-border: #388E3C;
+    --public-bg: #E3F2FD;
+    --private-bg: #F3E5F5;
+    --data-bg: #FCE4EC;
+    --internet-bg: #E0F7FA;
+    --bg: #0D1117;
+    --text: #E6EDF3;
+    --muted: #8B949E;
+    --border: #30363D;
+    --card: #161B22;
+    --highlight: #FF9900;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Syne', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 32px 24px;
+  }
+
+  /* HEADER */
+  .header {
+    text-align: center;
+    margin-bottom: 40px;
+  }
+  .header-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, #FF9900, #FF6B00);
+    color: white;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    padding: 6px 16px;
+    border-radius: 2px;
+    margin-bottom: 16px;
+    text-transform: uppercase;
+  }
+  .header h1 {
+    font-size: 28px;
+    font-weight: 800;
+    color: white;
+    letter-spacing: -0.5px;
+    margin-bottom: 8px;
+  }
+  .header h1 span { color: var(--aws-orange); }
+  .header p {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  /* MAIN DIAGRAM */
+  .diagram {
+    max-width: 1400px;
+    margin: 0 auto;
+    position: relative;
+  }
+
+  /* LAYERS */
+  .layer {
+    display: flex;
+    align-items: stretch;
+    gap: 12px;
+    margin-bottom: 12px;
+    position: relative;
+  }
+
+  .layer-label {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: var(--muted);
+    text-transform: uppercase;
+    min-width: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform: rotate(180deg);
+    border-left: 2px solid var(--border);
+    padding-left: 6px;
+  }
+
+  .layer-content {
+    flex: 1;
+    display: flex;
+    gap: 12px;
+    align-items: stretch;
+  }
+
+  /* BOXES */
+  .box {
+    border-radius: 8px;
+    padding: 16px;
+    position: relative;
+    border: 1px solid var(--border);
+  }
+
+  .box-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  /* INTERNET LAYER */
+  .internet-box {
+    background: linear-gradient(135deg, #0D2137, #0A1929);
+    border: 1px solid #1565C0;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 32px;
+    padding: 20px;
+    border-radius: 8px;
+  }
+
+  .user-icon {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .icon-circle {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+  }
+
+  .icon-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: #90CAF9;
+    text-align: center;
+  }
+
+  /* DNS/CDN ROW */
+  .dns-box {
+    background: #1A1F2E;
+    border: 1px solid #FF9900;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    padding: 14px 20px;
+    border-radius: 8px;
+    gap: 12px;
+  }
+
+  /* SERVICE CARD */
+  .svc {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    min-width: 80px;
+  }
+
+  .svc-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    position: relative;
+  }
+
+  .svc-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    color: white;
+    text-align: center;
+  }
+
+  .svc-detail {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  .svc-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px;
+    padding: 2px 6px;
+    border-radius: 2px;
+    font-weight: 700;
+  }
+
+  /* ARROW */
+  .arrow-down {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 24px;
+    margin: -4px 0;
+    position: relative;
+    z-index: 10;
+  }
+
+  .arrow-down::after {
+    content: '';
+    width: 2px;
+    height: 16px;
+    background: linear-gradient(to bottom, var(--aws-orange), transparent);
+    position: absolute;
+    top: 0;
+  }
+
+  .arrow-tip {
+    width: 0;
+    height: 0;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top: 8px solid var(--aws-orange);
+    position: absolute;
+    bottom: 2px;
+  }
+
+  /* VPC WRAPPER */
+  .vpc-wrapper {
+    border: 2px dashed #1565C0;
+    border-radius: 12px;
+    padding: 16px;
+    background: rgba(21, 101, 192, 0.05);
+    position: relative;
+    margin-bottom: 12px;
+  }
+
+  .vpc-label {
+    position: absolute;
+    top: -12px;
+    left: 20px;
+    background: var(--bg);
+    padding: 0 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    color: #1565C0;
+    letter-spacing: 1px;
+  }
+
+  /* AZ WRAPPER */
+  .az-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .az-box {
+    border-radius: 10px;
+    padding: 14px;
+    position: relative;
+  }
+
+  .az-a { background: rgba(27, 94, 32, 0.1); border: 1.5px dashed #388E3C; }
+  .az-b { background: rgba(230, 119, 0, 0.08); border: 1.5px dashed #E67700; }
+
+  .az-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+  }
+
+  .az-a .az-label { color: #66BB6A; }
+  .az-b .az-label { color: #FFA726; }
+
+  /* SUBNET */
+  .subnet {
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .subnet-public { background: rgba(21, 101, 192, 0.15); border: 1px solid rgba(21, 101, 192, 0.4); }
+  .subnet-private { background: rgba(106, 27, 154, 0.15); border: 1px solid rgba(106, 27, 154, 0.4); }
+  .subnet-data { background: rgba(183, 28, 28, 0.1); border: 1px solid rgba(183, 28, 28, 0.3); }
+
+  .subnet-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px;
+    font-weight: 700;
+    padding: 2px 5px;
+    border-radius: 2px;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .tag-public { background: #1565C0; color: white; }
+  .tag-private { background: #6A1B9A; color: white; }
+  .tag-data { background: #B71C1C; color: white; }
+
+  .subnet-info {
+    flex: 1;
+  }
+
+  .subnet-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    color: white;
+  }
+
+  .subnet-cidr {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    color: var(--muted);
+  }
+
+  /* RESOURCE CARDS */
+  .resource-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+  }
+
+  .resource-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 140px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .resource-card::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+  }
+
+  .rc-ecs::before { background: #1DB954; }
+  .rc-rds::before { background: #1A73E8; }
+  .rc-redis::before { background: #E53935; }
+  .rc-nat::before { background: #FF9900; }
+  .rc-alb::before { background: #FF9900; }
+
+  .rc-icon { font-size: 18px; }
+
+  .rc-info { flex: 1; }
+  .rc-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    color: white;
+  }
+  .rc-detail {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    color: var(--muted);
+  }
+
+  .status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--aws-green);
+    box-shadow: 0 0 6px var(--aws-green);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(0.8); }
+  }
+
+  /* SHARED SERVICES ROW */
+  .shared-row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+    margin-top: 12px;
+  }
+
+  .shared-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+
+  .shared-card:hover { border-color: var(--aws-orange); }
+
+  .shared-icon { font-size: 24px; margin-bottom: 6px; }
+  .shared-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    color: white;
+    margin-bottom: 2px;
+  }
+  .shared-detail {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px;
+    color: var(--muted);
+  }
+
+  /* CONNECTIONS */
+  .connections-section {
+    margin-top: 24px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .conn-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+  }
+
+  .conn-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--aws-orange);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .flow-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .flow-item:last-child { border-bottom: none; }
+
+  .flow-step {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--aws-orange);
+    color: var(--bg);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .flow-text {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text);
+    flex: 1;
+  }
+
+  .flow-arrow {
+    font-size: 10px;
+    color: var(--aws-orange);
+  }
+
+  /* SG TABLE */
+  .sg-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    margin-top: 8px;
+  }
+  .sg-table th {
+    background: rgba(255, 153, 0, 0.15);
+    color: var(--aws-orange);
+    padding: 6px 10px;
+    text-align: left;
+    font-size: 9px;
+    letter-spacing: 1px;
+  }
+  .sg-table td {
+    padding: 5px 10px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+    vertical-align: middle;
+  }
+  .sg-table tr:last-child td { border-bottom: none; }
+
+  .badge {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 2px;
+    font-size: 8px;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .badge-green { background: rgba(29, 185, 84, 0.2); color: #1DB954; }
+  .badge-blue { background: rgba(26, 115, 232, 0.2); color: #4FC3F7; }
+  .badge-orange { background: rgba(255, 153, 0, 0.2); color: #FF9900; }
+  .badge-red { background: rgba(229, 57, 53, 0.2); color: #EF5350; }
+  .badge-purple { background: rgba(124, 58, 237, 0.2); color: #A78BFA; }
+
+  /* FAILOVER TIMELINE */
+  .timeline {
+    position: relative;
+    padding-left: 20px;
+  }
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 6px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: linear-gradient(to bottom, var(--aws-orange), transparent);
+  }
+  .tl-item {
+    position: relative;
+    padding: 4px 0 4px 16px;
+    margin-bottom: 4px;
+  }
+  .tl-item::before {
+    content: '';
+    position: absolute;
+    left: -6px;
+    top: 10px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--aws-orange);
+    box-shadow: 0 0 6px var(--aws-orange);
+  }
+  .tl-time {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    color: var(--aws-orange);
+    font-weight: 700;
+  }
+  .tl-text {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--text);
+  }
+
+  /* METRICS ROW */
+  .metrics-row {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 10px;
+    margin-top: 20px;
+  }
+
+  .metric-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    text-align: center;
+  }
+
+  .metric-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--aws-orange);
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+
+  .metric-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  /* ALB CENTER */
+  .alb-center {
+    background: linear-gradient(135deg, #1A1500, #2A1F00);
+    border: 2px solid var(--aws-orange);
+    border-radius: 10px;
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .alb-center::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--aws-orange), transparent);
+  }
+
+  .alb-glow {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 200px;
+    height: 60px;
+    background: radial-gradient(ellipse, rgba(255,153,0,0.08), transparent);
+    pointer-events: none;
+  }
+
+  .separator {
+    width: 1px;
+    height: 40px;
+    background: var(--border);
+  }
+
+  /* CICD BOX */
+  .cicd-box {
+    background: var(--card);
+    border: 1px solid #1DB954;
+    border-radius: 8px;
+    padding: 14px;
+    margin-top: 12px;
+  }
+
+  .cicd-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 700;
+    color: #1DB954;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+
+  .cicd-flow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .cicd-step {
+    background: rgba(29, 185, 84, 0.1);
+    border: 1px solid rgba(29, 185, 84, 0.3);
+    border-radius: 4px;
+    padding: 6px 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    color: white;
+    text-align: center;
+    flex: 1;
+    min-width: 80px;
+  }
+
+  .cicd-arrow {
+    color: #1DB954;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+
+  /* FOOTER */
+  .diagram-footer {
+    margin-top: 24px;
+    padding: 16px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: gap;
+  }
+
+  .footer-info {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+  }
+
+  .footer-info span { color: var(--aws-orange); }
+
+  /* LEGEND */
+  .legend {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    color: var(--muted);
+  }
+
+  .legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+
+  .legend-line {
+    width: 20px;
+    height: 2px;
+  }
+
+  /* PRINT */
+  @media print {
+    body { background: white; color: black; padding: 0; }
+  }
+
+  /* DIVIDER */
+  .section-divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 20px 0;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-badge">AWS Architecture Diagram</div>
+  <h1>HA Cluster — <span>Hội Sinh Viên TDC</span></h1>
+  <p>ap-southeast-1 (Singapore) · ECS Fargate · RDS MySQL · Multi-AZ · GitHub Actions CI/CD</p>
+</div>
+
+<div class="diagram">
+
+  <!-- ===== INTERNET LAYER ===== -->
+  <div class="layer">
+    <div class="layer-label" style="color:#4FC3F7">INTERNET</div>
+    <div class="internet-box" style="flex:1">
+      <div class="user-icon">
+        <div class="icon-circle" style="background:rgba(79,195,247,0.15);border:1px solid rgba(79,195,247,0.4)">👥</div>
+        <div class="icon-label">Users</div>
+        <div class="icon-label" style="color:var(--muted)">doanhoitdc.id.vn</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted)">DNS CNAME</div>
+        <div style="color:#4FC3F7;font-size:20px;">→</div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:8px;color:var(--muted)">PA Việt Nam</div>
+      </div>
+      <div class="user-icon">
+        <div class="icon-circle" style="background:rgba(255,153,0,0.15);border:1px solid rgba(255,153,0,0.4)">🌐</div>
+        <div class="icon-label">Route53 / DNS</div>
+        <div class="icon-label" style="color:var(--muted)">Health Check</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted)">HTTPS/HTTP</div>
+        <div style="color:var(--aws-orange);font-size:20px;">→</div>
+      </div>
+      <div class="user-icon">
+        <div class="icon-circle" style="background:rgba(255,153,0,0.15);border:1px solid rgba(255,153,0,0.4)">🛡️</div>
+        <div class="icon-label">AWS WAF</div>
+        <div class="icon-label" style="color:var(--muted)">(Optional)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ARROW -->
+  <div class="arrow-down"><div class="arrow-tip"></div></div>
+
+  <!-- ===== ALB LAYER ===== -->
+  <div class="alb-center">
+    <div class="alb-glow"></div>
+    <div class="svc">
+      <div class="svc-icon" style="background:rgba(255,153,0,0.2)">⚖️</div>
+      <div class="svc-name">Application Load Balancer</div>
+      <div class="svc-detail">ha-web-alb</div>
+    </div>
+    <div class="separator"></div>
+    <div style="display:flex;flex-direction:column;gap:4px">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted)">Listener</div>
+      <div class="badge badge-orange">HTTP : 80</div>
+    </div>
+    <div class="separator"></div>
+    <div style="display:flex;flex-direction:column;gap:4px">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted)">Target Group</div>
+      <div class="badge badge-blue">ha-target (IP type)</div>
+    </div>
+    <div class="separator"></div>
+    <div style="display:flex;flex-direction:column;gap:4px">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted)">Health Check</div>
+      <div class="badge badge-green">GET /health.php → 200</div>
+    </div>
+    <div class="separator"></div>
+    <div style="display:flex;flex-direction:column;gap:4px">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted)">Algorithm</div>
+      <div class="badge badge-purple">Round Robin</div>
+    </div>
+    <div class="separator"></div>
+    <div style="display:flex;flex-direction:column;gap:4px">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted)">Scheme</div>
+      <div class="badge badge-orange">Internet-facing</div>
+    </div>
+    <div style="position:absolute;right:16px;top:50%;transform:translateY(-50%);display:flex;align-items:center;gap:4px">
+      <div class="status-dot"></div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:#1DB954">ACTIVE</div>
+    </div>
+  </div>
+
+  <!-- ARROW -->
+  <div class="arrow-down"><div class="arrow-tip"></div></div>
+
+  <!-- ===== VPC ===== -->
+  <div class="vpc-wrapper">
+    <div class="vpc-label">🔒 VPC: solution-cluster-ha-vpc (10.0.0.0/16) — Singapore (ap-southeast-1)</div>
+
+    <!-- SG INFO -->
+    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+      <div class="badge badge-orange" style="padding:4px 8px;font-size:9px">sg-alb: 80,443←ANY</div>
+      <div class="badge badge-green" style="padding:4px 8px;font-size:9px">sg-ecs: 80←sg-alb</div>
+      <div class="badge badge-blue" style="padding:4px 8px;font-size:9px">sg-rds: 3306←sg-ecs</div>
+      <div class="badge badge-red" style="padding:4px 8px;font-size:9px">sg-redis: 6379←sg-ecs</div>
+      <div style="margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted)">NAT Gateway (AZ-1a) · Internet Gateway</div>
+    </div>
+
+    <!-- AZ GRID -->
+    <div class="az-grid">
+
+      <!-- AZ-1a -->
+      <div class="az-box az-a">
+        <div class="az-label">📍 Availability Zone: ap-southeast-1a</div>
+
+        <div class="subnet subnet-public">
+          <span class="subnet-tag tag-public">PUBLIC</span>
+          <div class="subnet-info">
+            <div class="subnet-name">subnet-public1-ap-southeast-1a</div>
+            <div class="subnet-cidr">10.0.0.0/20 · NAT Gateway ở đây</div>
+          </div>
+          <div class="badge badge-orange">NAT GW</div>
+        </div>
+
+        <div class="subnet subnet-private">
+          <span class="subnet-tag tag-private">PRIVATE</span>
+          <div class="subnet-info">
+            <div class="subnet-name">subnet-private1-ap-southeast-1a</div>
+            <div class="subnet-cidr">10.0.128.0/20</div>
+          </div>
+        </div>
+
+        <div class="resource-card rc-ecs" style="margin-bottom:8px">
+          <div class="rc-icon">🐳</div>
+          <div class="rc-info">
+            <div class="rc-name">ECS Fargate Task 1</div>
+            <div class="rc-detail">php-app:80 · 1vCPU / 3GB</div>
+            <div class="rc-detail">ncdunnhhh0312/hoi_sinh_vien:latest</div>
+          </div>
+          <div class="status-dot"></div>
+        </div>
+
+        <div class="subnet subnet-data">
+          <span class="subnet-tag tag-data">DATA</span>
+          <div class="subnet-info">
+            <div class="subnet-name">RDS MySQL Primary</div>
+            <div class="subnet-cidr">db.t4g.micro · ha-rds endpoint</div>
+          </div>
+          <div class="badge badge-blue">PRIMARY ✍️</div>
+        </div>
+      </div>
+
+      <!-- AZ-1b -->
+      <div class="az-box az-b">
+        <div class="az-label">📍 Availability Zone: ap-southeast-1b</div>
+
+        <div class="subnet subnet-public">
+          <span class="subnet-tag tag-public">PUBLIC</span>
+          <div class="subnet-info">
+            <div class="subnet-name">subnet-public2-ap-southeast-1b</div>
+            <div class="subnet-cidr">10.0.16.0/20</div>
+          </div>
+          <div class="badge badge-blue">ALB node</div>
+        </div>
+
+        <div class="subnet subnet-private">
+          <span class="subnet-tag tag-private">PRIVATE</span>
+          <div class="subnet-info">
+            <div class="subnet-name">subnet-private2-ap-southeast-1b</div>
+            <div class="subnet-cidr">10.0.144.0/20</div>
+          </div>
+        </div>
+
+        <div class="resource-card rc-ecs" style="margin-bottom:8px">
+          <div class="rc-icon">🐳</div>
+          <div class="rc-info">
+            <div class="rc-name">ECS Fargate Task 2</div>
+            <div class="rc-detail">php-app:80 · 1vCPU / 3GB</div>
+            <div class="rc-detail">ncdunnhhh0312/hoi_sinh_vien:latest</div>
+          </div>
+          <div class="status-dot"></div>
+        </div>
+
+        <div class="subnet subnet-data">
+          <span class="subnet-tag tag-data">DATA</span>
+          <div class="subnet-info">
+            <div class="subnet-name">RDS MySQL Standby</div>
+            <div class="subnet-cidr">Multi-AZ replica · auto-failover</div>
+          </div>
+          <div class="badge badge-orange">STANDBY 🔄</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SHARED SERVICES -->
+    <hr class="section-divider">
+    <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:10px">SHARED SERVICES (Multi-AZ)</div>
+    <div class="shared-row">
+      <div class="shared-card">
+        <div class="shared-icon">🗄️</div>
+        <div class="shared-name">RDS MySQL</div>
+        <div class="shared-detail">ha-rds · Free Tier</div>
+        <div class="shared-detail">db.t4g.micro · 20GB</div>
+        <div style="margin-top:4px"><span class="badge badge-blue">MySQL 8.0</span></div>
+      </div>
+      <div class="shared-card">
+        <div class="shared-icon">⚡</div>
+        <div class="shared-name">ElastiCache</div>
+        <div class="shared-detail">Redis (Optional)</div>
+        <div class="shared-detail">Session / Cache</div>
+        <div style="margin-top:4px"><span class="badge badge-red">SKIPPED</span></div>
+      </div>
+      <div class="shared-card">
+        <div class="shared-icon">📦</div>
+        <div class="shared-name">Docker Hub</div>
+        <div class="shared-detail">ncdunnhhh0312</div>
+        <div class="shared-detail">/hoi_sinh_vien</div>
+        <div style="margin-top:4px"><span class="badge badge-green">REGISTRY</span></div>
+      </div>
+      <div class="shared-card">
+        <div class="shared-icon">📝</div>
+        <div class="shared-name">CloudWatch</div>
+        <div class="shared-detail">Logs: /ecs/webapp</div>
+        <div class="shared-detail">Default monitoring</div>
+        <div style="margin-top:4px"><span class="badge badge-orange">LOGS</span></div>
+      </div>
+      <div class="shared-card">
+        <div class="shared-icon">🔑</div>
+        <div class="shared-name">IAM Roles</div>
+        <div class="shared-detail">ecsTaskExecutionRole</div>
+        <div class="shared-detail">ha-role</div>
+        <div style="margin-top:4px"><span class="badge badge-purple">SECURITY</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CI/CD -->
+  <div class="cicd-box">
+    <div class="cicd-title">⚙️ CI/CD Pipeline — GitHub Actions (Auto Deploy on Push to main)</div>
+    <div class="cicd-flow">
+      <div class="cicd-step">👨‍💻 Developer<br>git push main</div>
+      <div class="cicd-arrow">→</div>
+      <div class="cicd-step">🐙 GitHub<br>Trigger Action</div>
+      <div class="cicd-arrow">→</div>
+      <div class="cicd-step">🔨 Build<br>docker build</div>
+      <div class="cicd-arrow">→</div>
+      <div class="cicd-step">📦 Push<br>Docker Hub</div>
+      <div class="cicd-arrow">→</div>
+      <div class="cicd-step">📋 Update<br>Task Definition</div>
+      <div class="cicd-arrow">→</div>
+      <div class="cicd-step">🚀 Deploy<br>ECS Rolling</div>
+      <div class="cicd-arrow">→</div>
+      <div class="cicd-step" style="border-color:rgba(29,185,84,0.6);background:rgba(29,185,84,0.15)">✅ Live<br>~2 phút</div>
+    </div>
+  </div>
+
+  <!-- DETAILS SECTION -->
+  <div class="connections-section">
+
+    <!-- REQUEST FLOW -->
+    <div class="conn-card">
+      <div class="conn-title">🔄 Luồng Request (Request Flow)</div>
+      <div class="timeline">
+        <div class="tl-item">
+          <div class="tl-time">1. DNS</div>
+          <div class="tl-text">User truy cập doanhoitdc.id.vn → PA Việt Nam DNS → CNAME → ALB DNS</div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-time">2. ALB</div>
+          <div class="tl-text">ALB nhận request port 80 → Health check → Round Robin → ECS Task</div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-time">3. ECS</div>
+          <div class="tl-text">Container PHP+Apache xử lý request → query MySQL nếu cần</div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-time">4. RDS</div>
+          <div class="tl-text">MySQL Primary xử lý query → trả kết quả cho PHP</div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-time">5. Response</div>
+          <div class="tl-text">PHP render HTML → ALB → User (latency ~50-100ms)</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FAILOVER TIMELINE -->
+    <div class="conn-card">
+      <div class="conn-title">⚡ Failover Timeline (Container Crash)</div>
+      <div class="timeline">
+        <div class="tl-item">
+          <div class="tl-time">T+0s</div>
+          <div class="tl-text">Container 1 (AZ-1a) crash đột ngột</div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-time">T+10s</div>
+          <div class="tl-text">ALB health check thất bại → loại Container 1 khỏi pool</div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-time">T+10s</div>
+          <div class="tl-text">100% traffic → Container 2 (AZ-1b) · User KHÔNG thấy lỗi</div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-time">T+30s</div>
+          <div class="tl-text">ECS phát hiện running < desired → tạo Container mới</div>
+        </div>
+        <div class="tl-item">
+          <div class="tl-time">T+60s</div>
+          <div class="tl-text">Container mới RUNNING → ALB thêm vào pool → 2/2 ✅</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECURITY GROUPS -->
+    <div class="conn-card">
+      <div class="conn-title">🔒 Security Groups (Least Privilege)</div>
+      <table class="sg-table">
+        <thead>
+          <tr><th>Security Group</th><th>Inbound</th><th>Source</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="badge badge-orange">sg-alb</span></td>
+            <td>Port 80, 443</td>
+            <td>0.0.0.0/0 (Internet)</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-green">sg-ecs</span></td>
+            <td>Port 80</td>
+            <td>sg-alb only</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-blue">sg-rds</span></td>
+            <td>Port 3306</td>
+            <td>sg-ecs only</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-red">sg-redis</span></td>
+            <td>Port 6379</td>
+            <td>sg-ecs only</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- AUTO SCALING -->
+    <div class="conn-card">
+      <div class="conn-title">📈 Auto Scaling Policy</div>
+      <table class="sg-table">
+        <thead>
+          <tr><th>Metric</th><th>Scale Out</th><th>Min/Max</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>CPU Utilization</td>
+            <td>> 70%</td>
+            <td><span class="badge badge-green">2 / 6</span></td>
+          </tr>
+          <tr>
+            <td>Memory Utilization</td>
+            <td>> 75%</td>
+            <td><span class="badge badge-green">2 / 6</span></td>
+          </tr>
+          <tr>
+            <td>Request/Target</td>
+            <td>> 1000/min</td>
+            <td><span class="badge badge-green">2 / 6</span></td>
+          </tr>
+          <tr>
+            <td>Scale Out Cooldown</td>
+            <td colspan="2">60 giây</td>
+          </tr>
+          <tr>
+            <td>Scale In Cooldown</td>
+            <td colspan="2">300 giây</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- METRICS -->
+  <div class="metrics-row">
+    <div class="metric-card">
+      <div class="metric-value">2/2</div>
+      <div class="metric-label">Tasks Running</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-value">2</div>
+      <div class="metric-label">Avail. Zones</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-value">&lt;60s</div>
+      <div class="metric-label">Recovery Time</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-value">~2m</div>
+      <div class="metric-label">Deploy Time</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-value">7d</div>
+      <div class="metric-label">DB Backup</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-value">99.9%</div>
+      <div class="metric-label">Target Uptime</div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="diagram-footer" style="margin-top:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+    <div class="footer-info">
+      Project: <span>HA Cluster AWS</span> · 
+      Region: <span>ap-southeast-1 (Singapore)</span> · 
+      Stack: <span>PHP + Docker + ECS Fargate + RDS MySQL</span>
+    </div>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#1DB954"></div>Running / Active</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#FF9900"></div>AWS Service</div>
+      <div class="legend-item"><div class="legend-line" style="background:#388E3C;border:1px dashed #388E3C"></div>AZ-1a</div>
+      <div class="legend-item"><div class="legend-line" style="background:#E67700;border:1px dashed #E67700"></div>AZ-1b</div>
+      <div class="legend-item"><div class="legend-line" style="background:#1565C0;border:1px dashed #1565C0"></div>VPC Boundary</div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
