@@ -1,13 +1,10 @@
 <?php
-
 declare(strict_types=1);
-
 $host = getenv('DB_HOST') ?: 'db';
 $dbName = getenv('DB_NAME') ?: 'hoi_sinh_vien';
 $user = getenv('DB_USER') ?: 'root';
 $pass = getenv('DB_PASS') ?: 'root123';
 $port = getenv('DB_PORT') ?: '3306';
-
 $charset = 'utf8mb4';
 
 $dsn = "mysql:host={$host};port={$port};dbname={$dbName};charset={$charset}";
@@ -19,10 +16,7 @@ $options = [
 ];
 
 try {
-
     $pdo = new PDO($dsn, $user, $pass, $options);
-
 } catch (PDOException $e) {
-
     exit('Không kết nối được CSDL: ' . $e->getMessage());
 }
