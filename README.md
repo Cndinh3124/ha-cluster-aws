@@ -235,7 +235,7 @@ ha-cluster-aws/
 
 | | |
 |-|-|
-| **Sinh viên** | Cndinh3124 |
+| **Sinh viên** | Nguyễn Công Định |
 | **Trường** | Cao Đẳng Công Nghệ Thủ Đức |
 | **Ứng dụng** | Cổng thông tin Hội Sinh Viên TDC |
 | **Region** | ap-southeast-1 (Singapore) |
@@ -244,5 +244,5 @@ ha-cluster-aws/
 ---
 
 <div align="center">
-Made with ❤️ on AWS · 2026
+Made with on AWS · 2026
 </div>
